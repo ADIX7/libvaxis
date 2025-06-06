@@ -15,6 +15,10 @@ const PadValues = struct {
 
 child: vxfw.Widget,
 padding: PadValues = .{},
+fill: ?struct {
+    style: vaxis.Style,
+    char: vaxis.Cell.Character = .{},
+} = null,
 
 /// Vertical padding will be divided by 2 to approximate equal padding
 pub fn all(padding: u16) PadValues {
@@ -87,8 +91,29 @@ pub fn draw(self: *const Padding, ctx: vxfw.DrawContext) Allocator.Error!vxfw.Su
         .height = child_surface.size.height + (pad.top + pad.bottom),
     };
 
-    // Create the padding surface
-    return .{
+    return if (self.fill) |fill| surface: {
+        const surface = try vxfw.Surface.initWithChildren(
+            ctx.arena,
+            self.widget(),
+            size,
+            children,
+        );
+        for (0..size.width) |x| {
+            for (0..size.height) |y| {
+                if (x < pad.left or x >= pad.left + child_surface.size.width or y < pad.top or y >= pad.top + child_surface.size.height) {
+                    surface.writeCell(
+                        @intCast(x),
+                        @intCast(y),
+                        .{
+                            .char = fill.char,
+                            .style = fill.style,
+                        },
+                    );
+                }
+            }
+        }
+        break :surface surface;
+    } else .{
         .size = size,
         .widget = self.widget(),
         .buffer = &.{},
